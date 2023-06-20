@@ -1,3 +1,8 @@
+#define FILE_OPEN_ERROR     10
+#define FILE_WRITE_ERROR    11
+#define FILE_CLOSE_ERROR    12
+#define FILE_SAVE_SUCCESS   13
+
 #define PIX(im, x, y) ( (im)->px[(y) * (im)->width + (x)] )
 
 typedef struct{
@@ -8,4 +13,6 @@ typedef struct{
 
 GSI *gsi_create_empty(void);
 
-GSI *gsi_create_with_geometry(unsigned int m, unsigned int n);
+GSI *gsi_create_with_geometry_and_color(unsigned int m, unsigned int n, unsigned char color);
+
+char gsi_save_as_pgm5(GSI *img, char *file_name, char *comment);
