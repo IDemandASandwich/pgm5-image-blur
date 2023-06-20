@@ -50,7 +50,7 @@ char gsi_save_as_pgm5(GSI *img, char *file_name, char *comment){
         return FILE_OPEN_ERROR;
     }
 
-    snprintf(header, sizeof(header), "P5\n%s\n%d %d\n255\n", comment, img->width, img->height);
+    snprintf(header, sizeof(header), "P5\n#%s\n%d %d\n255\n", comment, img->width, img->height);
 
     write_b = write(fd, header, strlen(header));
     if (write_b < 0) {
