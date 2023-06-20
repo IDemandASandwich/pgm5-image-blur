@@ -42,21 +42,30 @@ GSI *gsi_create_with_geometry_and_color(unsigned int m, unsigned int n, unsigned
 }
 
 char gsi_save_as_pgm5(GSI *img, char *file_name, char *comment){
-    int file, write_b;
+    int fd, write_b;
+    char header[50];
     
-    file = open(file_name, O_CREAT, S_IRUSR);
-    if(file < 0){
+    fd = open(file_name, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
+    if(fd < 0){
         return FILE_OPEN_ERROR;
     }
 
-    write_b = write(file, img->px, img->height * img->width);
+    snprintf(header, sizeof(header), "P5\n%s\n%d %d\n255\n", comment, img->width, img->height);
+
+    write_b = write(fd, header, strlen(header));
+    if (write_b < 0) {
+        close(fd);
+        return FILE_WRITE_ERROR;
+    }
+
+    write_b = write(fd, img->px, img->height * img->width);
     if(write_b < 0){
         return FILE_WRITE_ERROR;
     }
 
-    write_b = close(file);
-    if(write_b = -1){
-        return file;
+    write_b = close(fd);
+    if(write_b == -1){
+        return FILE_CLOSE_ERROR;
     }
 
     return FILE_SAVE_SUCCESS;
