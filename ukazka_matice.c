@@ -4,11 +4,8 @@
 
 int main(void)
 {
-    GSI *ptr = gsi_create_with_geometry_and_color(25,25, 250);
+    GSI *img = gsi_create_by_pgm5("pic.pgm");
 
-    gsi_save_as_pgm5(ptr, "pic.pgm", "testing");
-
-    free(ptr);
-    free(ptr->px);
+    gsi_destroy(img);
     return 0;
 }

@@ -16,3 +16,9 @@ GSI *gsi_create_empty(void);
 GSI *gsi_create_with_geometry_and_color(unsigned int m, unsigned int n, unsigned char color);
 
 char gsi_save_as_pgm5(GSI *img, char *file_name, char *comment);
+
+GSI *gsi_create_by_pgm5(char *file_name);
+
+char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq);
+
+void gsi_destroy(GSI *img);
