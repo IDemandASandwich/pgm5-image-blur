@@ -72,10 +72,18 @@ char gsi_save_as_pgm5(GSI *img, char *file_name, char *comment){
     return FILE_SAVE_SUCCESS;
 }
 
-GSI *gsi_create_by_pgm5(char *file_name) {
+GSI *gsi_create_by_pgm5(char *file_name){
+    GSI* img = gsi_read_header_pgm5(file_name);
+
+    img->px = (unsigned char*)malloc(img->width * img->height * sizeof(unsigned char));
+
+    return img;
+}
+
+GSI *gsi_read_header_pgm5(char *file_name){
     GSI* img = gsi_create_empty();
 
-    unsigned int width = 0, height = 0, ptr = 0, c = 0;
+    unsigned int ptr = 0, c = 0;
     unsigned char temp[3];
 
     int fd = open(file_name, O_RDONLY);
@@ -84,6 +92,7 @@ GSI *gsi_create_by_pgm5(char *file_name) {
         return NULL;
     }
 
+    //sirka
     ptr = read(fd, temp, 2);
     if(ptr != 2 || temp[0] != 80 || temp[1] != 53){
         gsi_destroy(img);
@@ -99,34 +108,35 @@ GSI *gsi_create_by_pgm5(char *file_name) {
 
     while (read(fd, &c, 1) == 1 && c != '\n');
 
-    ptr = read(fd, temp, sizeof(int));
-    if(ptr != sizeof(int)){
+    ptr = read(fd, temp, 3);
+    if(ptr != 3){
         gsi_destroy(img);
         return NULL;
     }
 
     img->width = atoi(temp);
-    printf("%d\n", img->width);
 
-    if(lseek(fd, 1, SEEK_CUR) == -1){
-        gsi_destroy(img);
-        close(fd);
-        return NULL;
+    //vyska
+    if(temp[2] != ' '){
+        if(lseek(fd, 1, SEEK_CUR) == -1){
+            gsi_destroy(img);
+            close(fd);
+            return NULL;
+        }
     }
 
-    ptr = read(fd, temp, sizeof(int));
-    if(ptr != sizeof(int)){
+    ptr = read(fd, temp, 3);
+    if(ptr != 3){
         gsi_destroy(img);
         return NULL;
     }
     
     img->height = atoi(temp);
-    printf("%d", img->height);
 
-    img->px = (unsigned char*)malloc(img->width * img->height * sizeof(unsigned char));
-
+    close(fd);
     return img;
 }
+
 
 void gsi_destroy(GSI *img){
     free(img->px);

@@ -21,4 +21,6 @@ GSI *gsi_create_by_pgm5(char *file_name);
 
 char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq);
 
+GSI *gsi_read_header_pgm5(char *file_name);
+
 void gsi_destroy(GSI *img);
