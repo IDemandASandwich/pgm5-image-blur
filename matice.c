@@ -73,18 +73,9 @@ char gsi_save_as_pgm5(GSI *img, char *file_name, char *comment){
 }
 
 GSI *gsi_create_by_pgm5(char *file_name){
+    unsigned int val;
+
     GSI* img = gsi_read_header_pgm5(file_name);
-
-    img->px = (unsigned char*)malloc(img->width * img->height * sizeof(unsigned char));
-
-    return img;
-}
-
-GSI *gsi_read_header_pgm5(char *file_name){
-    GSI* img = gsi_create_empty();
-
-    unsigned int ptr = 0, c = 0;
-    unsigned char temp[3];
 
     int fd = open(file_name, O_RDONLY);
     if (fd < 0) {
@@ -92,9 +83,25 @@ GSI *gsi_read_header_pgm5(char *file_name){
         return NULL;
     }
 
-    //sirka
-    ptr = read(fd, temp, 2);
-    if(ptr != 2 || temp[0] != 80 || temp[1] != 53){
+    close(fd);
+    return img;
+}
+
+GSI *gsi_read_header_pgm5(char *file_name){
+    GSI* img = gsi_create_empty();
+
+    unsigned int val = 0, i = 0;
+    unsigned char temp[3], c = 0;
+
+    int fd = open(file_name, O_RDONLY);
+    if (fd < 0) {
+        gsi_destroy(img);
+        return NULL;
+    }
+
+    //ak obsahuje P5
+    val = read(fd, temp, 2);
+    if(val != 2 || temp[0] != 80 || temp[1] != 53){
         gsi_destroy(img);
         close(fd);
         return NULL;
@@ -106,37 +113,38 @@ GSI *gsi_read_header_pgm5(char *file_name){
         return NULL;
     }
 
+    //comment
     while (read(fd, &c, 1) == 1 && c != '\n');
 
-    ptr = read(fd, temp, 3);
-    if(ptr != 3){
-        gsi_destroy(img);
-        return NULL;
+    //sirka
+    temp[0] = temp[1] = temp[2] = 0;
+    i = 0;
+
+    while(read(fd, &c, 1) == 1 && c != ' '){
+        temp[i] = c;
+        i++;
     }
 
     img->width = atoi(temp);
 
     //vyska
-    if(temp[2] != ' '){
-        if(lseek(fd, 1, SEEK_CUR) == -1){
-            gsi_destroy(img);
-            close(fd);
-            return NULL;
-        }
-    }
 
-    ptr = read(fd, temp, 3);
-    if(ptr != 3){
-        gsi_destroy(img);
-        return NULL;
+    temp[0] = temp[1] = temp[2] = 0;
+    i = 0;
+
+    while(read(fd, &c, 1) == 1 && c != ' '){
+        temp[i] = c;
+        i++;
     }
     
     img->height = atoi(temp);
 
+    //najvyssia hodnota (preskocime kedze ju netreba)
+    while(read(fd, &c, 1) == 1 && c != ' ');
+
     close(fd);
     return img;
 }
-
 
 void gsi_destroy(GSI *img){
     free(img->px);
