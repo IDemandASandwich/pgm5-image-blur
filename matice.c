@@ -73,21 +73,6 @@ char gsi_save_as_pgm5(GSI *img, char *file_name, char *comment){
 }
 
 GSI *gsi_create_by_pgm5(char *file_name){
-    unsigned int val;
-
-    GSI* img = gsi_read_header_pgm5(file_name);
-
-    int fd = open(file_name, O_RDONLY);
-    if (fd < 0) {
-        gsi_destroy(img);
-        return NULL;
-    }
-
-    close(fd);
-    return img;
-}
-
-GSI *gsi_read_header_pgm5(char *file_name){
     GSI* img = gsi_create_empty();
 
     unsigned int val = 0, i = 0;
@@ -140,9 +125,22 @@ GSI *gsi_read_header_pgm5(char *file_name){
     img->height = atoi(temp);
 
     //najvyssia hodnota (preskocime kedze ju netreba)
-    while(read(fd, &c, 1) == 1 && c != ' ');
+    while(read(fd, &c, 1) == 1 && c != '\n');
 
-    close(fd);
+    //citanie samotneho obrazku
+    img->px = (unsigned char*)malloc(img->width * img->height * sizeof(unsigned char));
+
+    val = read(fd, img->px, img->width * img->height * sizeof(unsigned char));
+    if(val != img->width * img->height){        
+        gsi_destroy(img);
+        close(fd);
+        return NULL;
+    }
+
+    if(close(fd) == -1){
+        gsi_destroy(img);
+        return NULL;
+    }
     return img;
 }
 

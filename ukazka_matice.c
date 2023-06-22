@@ -9,10 +9,6 @@ int main(void)
 //    GSI *img = gsi_create_with_geometry_and_color(5, 2, 77);
 //    gsi_save_as_pgm5(img, "pic.pgm", "testing");
 
-    printf("%d %d\n", img->width, img->height);
-
-
-
     gsi_destroy(img);
     return 0;
 }
