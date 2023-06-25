@@ -145,16 +145,23 @@ GSI *gsi_create_by_pgm5(char *file_name){
 }
 
 char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
+    unsigned int y = 0, x = 0;
 
     if (to_blur == NULL || blurred == NULL || to_blur->px == NULL || blurred->px == NULL ||
         to_blur->width != blurred->width || to_blur->height != blurred->height) {
         return BLUR_FAILURE; 
     }
 
+    // Vypocitaj velkost kernelu podla sigsq
     int kernel_size = ceil(sqrt(2.0 * sigsq) * 3.0) * 2 + 1;
     int kernel_radius = kernel_size / 2;
 
+    // vytvor a vypln gauss kernel
     float *kernel = (float *)malloc(kernel_size * sizeof(float));
+    if(kernel == NULL){
+        return BLUR_FAILURE;
+    }
+
     float sum = 0.0;
 
     for (int i = 0; i < kernel_size; i++) {
@@ -164,16 +171,17 @@ char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
     }
 
     for (int i = 0; i < kernel_size; i++) {
-        kernel[i] /= sum; 
+        kernel[i] /= sum; // Normalizuj kernel aby sucet bol 1.0
     }
 
-    for (unsigned int y = 0; y < to_blur->height; y++) {
-        for (unsigned int x = 0; x < to_blur->width; x++) {
+    // Apply
+    for (y = 0; y < to_blur->height; y++) {
+        for (x = 0; x < to_blur->width; x++) {
             float blurred_value = 0.0;
             for (int i = 0; i < kernel_size; i++) {
                 int px = x + i - kernel_radius;
                 if (px < 0 || px >= to_blur->width) {
-                    continue;
+                    continue; // preskoc pixely mimo obrazku
                 }
                 blurred_value += PIX(to_blur, px, y) * kernel[i];
             }
@@ -181,17 +189,18 @@ char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
         }
     }
 
-        for (unsigned int y = 0; y < to_blur->height; y++) {
-            for (unsigned int x = 0; x < to_blur->width; x++) {
-                float blurred_value = 0.0;
-                for (int i = 0; i < kernel_size; i++) {
-                    int py = y + i - kernel_radius;
-                    if (py < 0 || py >= to_blur->height) {
-                        continue;
-                    }
-                    blurred_value += PIX(blurred, x, py) * kernel[i];
+    for (y = 0; y < to_blur->height; y++) {
+        for (x = 0; x < to_blur->width; x++) {
+            float blurred_value = 0.0;
+            for (int i = 0; i < kernel_size; i++) {
+                int py = y + i - kernel_radius;
+                if (py < 0 || py >= to_blur->height) {
+                    continue; // preskoc pixely mimo obrazku
                 }
-            PIX(blurred, x, y) = (unsigned char)blurred_value;
+                blurred_value += PIX(blurred, x, py) * kernel[i];
+            }
+
+        PIX(blurred, x, y) = (unsigned char)blurred_value;
         }
     }
 
