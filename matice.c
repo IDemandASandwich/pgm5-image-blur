@@ -4,6 +4,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <math.h>
 #include "matice.h"
 
 #include <stdio.h>
@@ -84,7 +85,7 @@ GSI *gsi_create_by_pgm5(char *file_name){
         return NULL;
     }
 
-    //ak obsahuje P5
+    //obsahuje P5 ?
     val = read(fd, temp, 2);
     if(val != 2 || temp[0] != 80 || temp[1] != 53){
         gsi_destroy(img);
@@ -113,7 +114,6 @@ GSI *gsi_create_by_pgm5(char *file_name){
     img->width = atoi(temp);
 
     //vyska
-
     temp[0] = temp[1] = temp[2] = 0;
     i = 0;
 
@@ -142,6 +142,62 @@ GSI *gsi_create_by_pgm5(char *file_name){
         return NULL;
     }
     return img;
+}
+
+char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
+
+    if (to_blur == NULL || blurred == NULL || to_blur->px == NULL || blurred->px == NULL ||
+        to_blur->width != blurred->width || to_blur->height != blurred->height) {
+        return BLUR_FAILURE; 
+    }
+
+    int kernel_size = ceil(sqrt(2.0 * sigsq) * 3.0) * 2 + 1;
+    int kernel_radius = kernel_size / 2;
+
+    float *kernel = (float *)malloc(kernel_size * sizeof(float));
+    float sum = 0.0;
+
+    for (int i = 0; i < kernel_size; i++) {
+        int x = i - kernel_radius;
+        kernel[i] = exp(-x * x / (2.0 * sigsq));
+        sum += kernel[i];
+    }
+
+    for (int i = 0; i < kernel_size; i++) {
+        kernel[i] /= sum; 
+    }
+
+    for (unsigned int y = 0; y < to_blur->height; y++) {
+        for (unsigned int x = 0; x < to_blur->width; x++) {
+            float blurred_value = 0.0;
+            for (int i = 0; i < kernel_size; i++) {
+                int px = x + i - kernel_radius;
+                if (px < 0 || px >= to_blur->width) {
+                    continue;
+                }
+                blurred_value += PIX(to_blur, px, y) * kernel[i];
+            }
+            PIX(blurred, x, y) = (unsigned char)blurred_value;
+        }
+    }
+
+        for (unsigned int y = 0; y < to_blur->height; y++) {
+            for (unsigned int x = 0; x < to_blur->width; x++) {
+                float blurred_value = 0.0;
+                for (int i = 0; i < kernel_size; i++) {
+                    int py = y + i - kernel_radius;
+                    if (py < 0 || py >= to_blur->height) {
+                        continue;
+                    }
+                    blurred_value += PIX(blurred, x, py) * kernel[i];
+                }
+            PIX(blurred, x, y) = (unsigned char)blurred_value;
+        }
+    }
+
+    free(kernel);
+
+    return BLUR_SUCCESS;
 }
 
 void gsi_destroy(GSI *img){
