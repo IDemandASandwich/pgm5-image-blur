@@ -1,10 +1,10 @@
 #define BLUR_SUCCESS        1
 #define BLUR_FAILURE        2
 
-#define FILE_OPEN_ERROR     10
-#define FILE_WRITE_ERROR    11
-#define FILE_CLOSE_ERROR    12
-#define FILE_SAVE_SUCCESS   13
+#define FILE_OPEN_ERROR     3
+#define FILE_WRITE_ERROR    4
+#define FILE_CLOSE_ERROR    5
+#define FILE_SAVE_SUCCESS   6
 
 #define PIX(im, x, y) ( (im)->px[(y) * (im)->width + (x)] )
 

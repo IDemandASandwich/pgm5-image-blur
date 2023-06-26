@@ -195,6 +195,11 @@ char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
                 }
                 blurred_value += PIX(to_blur, px, y) * kernel[i];
             }
+
+            if(blurred_value > 255.0){
+                    blurred_value = 255.0;
+            }
+
             PIX(blurred, x, y) = (unsigned char)blurred_value;
         }
     }
@@ -207,11 +212,15 @@ char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
                 py = y + i - kernel_radius;
                 if (py < 0 || py >= to_blur->height) {
                     continue; // preskoc pixely mimo obrazku
-                }
-                blurred_value += PIX(blurred, x, py) * kernel[i];
+                }             
+            blurred_value += PIX(blurred, x, py) * kernel[i];
             }
 
-        PIX(blurred, x, y) = (unsigned char)blurred_value;
+            if(blurred_value > 255.0){
+                blurred_value = 255.0;
+            }   
+
+            PIX(blurred, x, y) = (unsigned char)blurred_value;
         }
     }
 
