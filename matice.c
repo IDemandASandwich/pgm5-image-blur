@@ -44,7 +44,7 @@ GSI *gsi_create_with_geometry_and_color(unsigned int m, unsigned int n, unsigned
 }
 
 char gsi_save_as_pgm5(GSI *img, char *file_name, char *comment){
-    int fd, write_b;
+    int fd, write_b, max = 0;
     char header[50];
     
     fd = open(file_name, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
@@ -52,7 +52,13 @@ char gsi_save_as_pgm5(GSI *img, char *file_name, char *comment){
         return FILE_OPEN_ERROR;
     }
 
-    snprintf(header, sizeof(header), "P5\n#%s\n%d %d 255\n", comment, img->width, img->height);
+    for(int i = 0; i < img->width * img->height; i++){
+        if(img->px[i] > max){
+            max = img->px[i];
+        }
+    }
+
+    snprintf(header, sizeof(header), "P5\n#%s\n%d %d %d\n", comment, img->width, img->height, max);
 
     write_b = write(fd, header, strlen(header));
     if (write_b < 0) {
@@ -129,6 +135,9 @@ GSI *gsi_create_by_pgm5(char *file_name){
 
     //citanie samotneho obrazku
     img->px = (unsigned char*)malloc(img->width * img->height * sizeof(unsigned char));
+    if(img->px == NULL){
+        return NULL;
+    }
 
     val = read(fd, img->px, img->width * img->height * sizeof(unsigned char));
     if(val != img->width * img->height){        
@@ -141,11 +150,14 @@ GSI *gsi_create_by_pgm5(char *file_name){
         gsi_destroy(img);
         return NULL;
     }
+
     return img;
 }
 
 char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
     unsigned int y = 0, x = 0;
+    int n = 0, i = 0, px = 0, py = 0;
+    float sum = 0.0, blurred_value = 0.0;
 
     if (to_blur == NULL || blurred == NULL || to_blur->px == NULL || blurred->px == NULL ||
         to_blur->width != blurred->width || to_blur->height != blurred->height) {
@@ -162,24 +174,22 @@ char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
         return BLUR_FAILURE;
     }
 
-    float sum = 0.0;
-
-    for (int i = 0; i < kernel_size; i++) {
-        int x = i - kernel_radius;
-        kernel[i] = exp(-x * x / (2.0 * sigsq));
+    for (i = 0; i < kernel_size; i++) {
+        n = i - kernel_radius;
+        kernel[i] = exp(-n * n / (2.0 * sigsq));
         sum += kernel[i];
     }
 
-    for (int i = 0; i < kernel_size; i++) {
+    for (i = 0; i < kernel_size; i++) {
         kernel[i] /= sum; // Normalizuj kernel aby sucet bol 1.0
     }
 
-    // Apply
+    // Apply horizontal
     for (y = 0; y < to_blur->height; y++) {
         for (x = 0; x < to_blur->width; x++) {
-            float blurred_value = 0.0;
-            for (int i = 0; i < kernel_size; i++) {
-                int px = x + i - kernel_radius;
+            blurred_value = 0.0;
+            for (i = 0; i < kernel_size; i++) {
+                px = x + i - kernel_radius;
                 if (px < 0 || px >= to_blur->width) {
                     continue; // preskoc pixely mimo obrazku
                 }
@@ -189,11 +199,12 @@ char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
         }
     }
 
+    //apply vertical
     for (y = 0; y < to_blur->height; y++) {
         for (x = 0; x < to_blur->width; x++) {
-            float blurred_value = 0.0;
-            for (int i = 0; i < kernel_size; i++) {
-                int py = y + i - kernel_radius;
+            blurred_value = 0.0;
+            for (i = 0; i < kernel_size; i++) {
+                py = y + i - kernel_radius;
                 if (py < 0 || py >= to_blur->height) {
                     continue; // preskoc pixely mimo obrazku
                 }
