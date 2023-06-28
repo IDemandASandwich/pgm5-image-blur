@@ -156,7 +156,7 @@ GSI *gsi_create_by_pgm5(char *file_name){
 
 char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
     unsigned int y = 0, x = 0;
-    int n = 0, i = 0, px = 0, py = 0;
+    int i = 0, j = 0, px = 0, py = 0;
     float sum = 0.0, blurred_value = 0.0;
 
     if (to_blur == NULL || blurred == NULL || to_blur->px == NULL || blurred->px == NULL ||
@@ -164,63 +164,62 @@ char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
         return BLUR_FAILURE; 
     }
 
-    // Vypocitaj velkost kernelu podla sigsq
+    if (to_blur == NULL || blurred == NULL || to_blur->px == NULL || blurred->px == NULL ||
+        to_blur->width != blurred->width || to_blur->height != blurred->height) {
+        return BLUR_FAILURE;
+    }
+
+    // Compute the size of the kernel based on sigsq
     int kernel_size = ceil(sqrt(2.0 * sigsq) * 3.0) * 2 + 1;
     int kernel_radius = kernel_size / 2;
 
-    // vytvor a vypln gauss kernel
+    // Create and populate the Gaussian kernel
     float *kernel = (float *)malloc(kernel_size * sizeof(float));
-    if(kernel == NULL){
+    if (kernel == NULL) {
         return BLUR_FAILURE;
     }
 
     for (i = 0; i < kernel_size; i++) {
-        n = i - kernel_radius;
-        kernel[i] = exp(-n * n / (2.0 * sigsq));
+        px = i - kernel_radius;
+        kernel[i] = exp(-px * px / (2.0 * sigsq));
         sum += kernel[i];
     }
 
     for (i = 0; i < kernel_size; i++) {
-        kernel[i] /= sum; // Normalizuj kernel aby sucet bol 1.0
+        kernel[i] /= sum; // Normalize the kernel so that the sum is 1.0
     }
 
-    // Apply horizontal
+    // Apply isotropic blur horizontally
     for (y = 0; y < to_blur->height; y++) {
         for (x = 0; x < to_blur->width; x++) {
             blurred_value = 0.0;
+            sum = 0.0;
             for (i = 0; i < kernel_size; i++) {
                 px = x + i - kernel_radius;
                 if (px < 0 || px >= to_blur->width) {
-                    continue; // preskoc pixely mimo obrazku
+                    continue; // Skip pixels outside the image
                 }
                 blurred_value += PIX(to_blur, px, y) * kernel[i];
+                sum += kernel[i];
             }
-
-            if(blurred_value > 255.0){
-                    blurred_value = 255.0;
-            }
-
-            PIX(blurred, x, y) = (unsigned char)blurred_value;
+            PIX(blurred, x, y) = (unsigned char)(blurred_value / sum);
         }
     }
 
-    //apply vertical
+    // Apply isotropic blur vertically
     for (y = 0; y < to_blur->height; y++) {
         for (x = 0; x < to_blur->width; x++) {
             blurred_value = 0.0;
-            for (i = 0; i < kernel_size; i++) {
-                py = y + i - kernel_radius;
+            sum = 0.0;
+            for (j = 0; j < kernel_size; j++) {
+                py = y + j - kernel_radius;
                 if (py < 0 || py >= to_blur->height) {
-                    continue; // preskoc pixely mimo obrazku
-                }             
-            blurred_value += PIX(blurred, x, py) * kernel[i];
+                    continue; // Skip pixels outside the image
+                }
+                blurred_value += PIX(blurred, x, py) * kernel[j];
+                sum += kernel[j];
             }
-
-            if(blurred_value > 255.0){
-                blurred_value = 255.0;
-            }   
-
-            PIX(blurred, x, y) = (unsigned char)blurred_value;
+            PIX(blurred, x, y) = (unsigned char)(blurred_value / sum);
         }
     }
 
