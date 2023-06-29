@@ -12,9 +12,7 @@
 GSI *gsi_create_empty(void){
     GSI *ptr = (GSI*)malloc(sizeof(GSI));
     if(ptr == NULL)
-    {
         return NULL;
-    }
 
     ptr->width = 0;
     ptr->height = 0;
@@ -26,9 +24,8 @@ GSI *gsi_create_empty(void){
 GSI *gsi_create_with_geometry_and_color(unsigned int m, unsigned int n, unsigned char color){
 
     GSI *ptr = gsi_create_empty();
-    if(ptr == NULL){
+    if(ptr == NULL)
         return NULL;
-    }
 
     ptr->px = (unsigned char*)malloc(m * n * sizeof(unsigned char));
     if(ptr->px == NULL){
@@ -48,14 +45,13 @@ char gsi_save_as_pgm5(GSI *img, char *file_name, char *comment){
     char header[50];
     
     fd = open(file_name, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
-    if(fd < 0){
+    if(fd < 0)
         return FILE_OPEN_ERROR;
-    }
+    
 
     for(int i = 0; i < img->width * img->height; i++){
-        if(img->px[i] > max){
+        if(img->px[i] > max)
             max = img->px[i];
-        }
     }
 
     snprintf(header, sizeof(header), "P5\n#%s\n%d %d %d\n", comment, img->width, img->height, max);
@@ -67,46 +63,45 @@ char gsi_save_as_pgm5(GSI *img, char *file_name, char *comment){
     }
 
     write_b = write(fd, img->px, img->height * img->width);
-    if(write_b < 0){
+    if(write_b < 0)
         return FILE_WRITE_ERROR;
-    }
+    
 
     write_b = close(fd);
-    if(write_b == -1){
+    if(write_b == -1)
         return FILE_CLOSE_ERROR;
-    }
 
     return FILE_SAVE_SUCCESS;
 }
 
 GSI *gsi_create_by_pgm5(char *file_name){
-    GSI* img = gsi_create_empty();
-
-    unsigned int val = 0, i = 0;
+    unsigned int val = 0, i = 0, width = 0, height = 0;
     unsigned char temp[3], c = 0;
 
     int fd = open(file_name, O_RDONLY);
-    if (fd < 0) {
-        gsi_destroy(img);
+    if (fd < 0) 
         return NULL;
-    }
 
     //obsahuje P5 ?
     val = read(fd, temp, 2);
     if(val != 2 || temp[0] != 80 || temp[1] != 53){
-        gsi_destroy(img);
         close(fd);
         return NULL;
     }
 
     if(lseek(fd, 1, SEEK_CUR) == -1){
-        gsi_destroy(img);
         close(fd);
         return NULL;
     }
 
     //comment
-    while (read(fd, &c, 1) == 1 && c != '\n');
+    if(read(fd, &c, 1) == 1 && c == '#')
+        while (read(fd, &c, 1) == 1 && c != '\n');
+    else
+        if(lseek(fd, -1, SEEK_CUR) == -1){
+            close(fd);
+            return NULL;
+        }
 
     //sirka
     temp[0] = temp[1] = temp[2] = 0;
@@ -117,7 +112,7 @@ GSI *gsi_create_by_pgm5(char *file_name){
         i++;
     }
 
-    img->width = atoi(temp);
+    width = atoi(temp);
 
     //vyska
     temp[0] = temp[1] = temp[2] = 0;
@@ -128,16 +123,18 @@ GSI *gsi_create_by_pgm5(char *file_name){
         i++;
     }
     
-    img->height = atoi(temp);
+    height = atoi(temp);
+
+    GSI* img = gsi_create_with_geometry_and_color(width, height, 0);
 
     //najvyssia hodnota (preskocime kedze ju netreba)
     while(read(fd, &c, 1) == 1 && c != '\n');
 
     //citanie samotneho obrazku
     img->px = (unsigned char*)malloc(img->width * img->height * sizeof(unsigned char));
-    if(img->px == NULL){
+    if(img->px == NULL)
         return NULL;
-    }
+    
 
     val = read(fd, img->px, img->width * img->height * sizeof(unsigned char));
     if(val != img->width * img->height){        
@@ -169,11 +166,11 @@ char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
         return BLUR_FAILURE;
     }
 
-    // Compute the size of the kernel based on sigsq
+    // vypocitaj velkost kernelu podla sigsq
     int kernel_size = ceil(sqrt(2.0 * sigsq) * 3.0) * 2 + 1;
     int kernel_radius = kernel_size / 2;
 
-    // Create and populate the Gaussian kernel
+    // vytvor a vypln gauss kernel
     float *kernel = (float *)malloc(kernel_size * sizeof(float));
     if (kernel == NULL) {
         return BLUR_FAILURE;
@@ -186,10 +183,10 @@ char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
     }
 
     for (i = 0; i < kernel_size; i++) {
-        kernel[i] /= sum; // Normalize the kernel so that the sum is 1.0
+        kernel[i] /= sum; // Normalizuj kernel aby sucet bol 1.0
     }
 
-    // Apply isotropic blur horizontally
+    // Apply horizontal
     for (y = 0; y < to_blur->height; y++) {
         for (x = 0; x < to_blur->width; x++) {
             blurred_value = 0.0;
@@ -197,7 +194,7 @@ char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
             for (i = 0; i < kernel_size; i++) {
                 px = x + i - kernel_radius;
                 if (px < 0 || px >= to_blur->width) {
-                    continue; // Skip pixels outside the image
+                    continue; // preskoc pixely mimo obrazku
                 }
                 blurred_value += PIX(to_blur, px, y) * kernel[i];
                 sum += kernel[i];
@@ -206,7 +203,7 @@ char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
         }
     }
 
-    // Apply isotropic blur vertically
+     //apply vertical
     for (y = 0; y < to_blur->height; y++) {
         for (x = 0; x < to_blur->width; x++) {
             blurred_value = 0.0;
@@ -214,7 +211,7 @@ char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
             for (j = 0; j < kernel_size; j++) {
                 py = y + j - kernel_radius;
                 if (py < 0 || py >= to_blur->height) {
-                    continue; // Skip pixels outside the image
+                    continue; // preskoc pixely mimo obrazku
                 }
                 blurred_value += PIX(blurred, x, py) * kernel[j];
                 sum += kernel[j];
