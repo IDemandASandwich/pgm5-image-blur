@@ -7,7 +7,7 @@ int main(void)
     GSI *to_blur = gsi_create_by_pgm5("minitel-main.pgm");
     GSI *blurred = gsi_create_by_pgm5("minitel-main.pgm");
 
-    gsi_gauss_blur(to_blur, blurred, 1.0);
+    gsi_gauss_blur(to_blur, blurred, 1.5);
 
     gsi_save_as_pgm5(blurred, "blurred.pgm", "blurred");
 

@@ -157,20 +157,18 @@ GSI *gsi_create_by_pgm5(char *file_name){
 }
 
 char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
-    unsigned int y = 0, x = 0;
-    int n = 0, i = 0, px = 0, py = 0;
-    float sum = 0.0, blurred_value = 0.0;
+    unsigned int y, x, i, py;
+    int n, px;
+    float sum, blurred_value;
 
     if (to_blur == NULL || blurred == NULL || to_blur->px == NULL || blurred->px == NULL ||
         to_blur->width != blurred->width || to_blur->height != blurred->height) {
         return BLUR_FAILURE;
     }
 
-    // Compute kernel size and radius
     int kernel_size = ceil(sqrt(2.0 * sigsq) * 3.0) * 2 + 1;
     int kernel_radius = kernel_size / 2;
 
-    // Allocate and fill the Gaussian kernel
     float *kernel = (float *)malloc(kernel_size * sizeof(float));
     if (kernel == NULL) {
         return BLUR_FAILURE;
@@ -186,22 +184,6 @@ char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
         kernel[i] /= sum;
     }
 
-    // Temporary blurred image
-    GSI *temp_blurred = (GSI *)malloc(sizeof(GSI));
-    if (temp_blurred == NULL) {
-        free(kernel);
-        return BLUR_FAILURE;
-    }
-    temp_blurred->width = to_blur->width;
-    temp_blurred->height = to_blur->height;
-    temp_blurred->px = (unsigned char *)malloc(to_blur->width * to_blur->height * sizeof(unsigned char));
-    if (temp_blurred->px == NULL) {
-        free(kernel);
-        free(temp_blurred);
-        return BLUR_FAILURE;
-    }
-
-    // Apply horizontal convolution
     for (y = 0; y < to_blur->height; y++) {
         for (x = 0; x < to_blur->width; x++) {
             blurred_value = 0.0;
@@ -212,11 +194,12 @@ char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
                 }
                 blurred_value += PIX(to_blur, px, y) * kernel[i];
             }
-            PIX(temp_blurred, x, y) = (unsigned char)blurred_value;
+            blurred_value = (blurred_value > 248.0) ? 248.0 : blurred_value;
+            blurred_value = (blurred_value < 0.0) ? 0.0 : blurred_value;
+            PIX(blurred, x, y) = (unsigned char)blurred_value;
         }
     }
 
-    // Apply vertical convolution
     for (y = 0; y < to_blur->height; y++) {
         for (x = 0; x < to_blur->width; x++) {
             blurred_value = 0.0;
@@ -225,14 +208,14 @@ char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
                 if (py < 0 || py >= to_blur->height) {
                     continue;
                 }
-                blurred_value += PIX(temp_blurred, x, py) * kernel[i];
+                blurred_value += PIX(blurred, x, py) * kernel[i];
             }
+            blurred_value = (blurred_value > 247.0) ? 247.0 : blurred_value;
+            blurred_value = (blurred_value < 0.0) ? 0.0 : blurred_value;
             PIX(blurred, x, y) = (unsigned char)blurred_value;
         }
     }
 
-    free(temp_blurred->px);
-    free(temp_blurred);
     free(kernel);
 
     return BLUR_SUCCESS;
