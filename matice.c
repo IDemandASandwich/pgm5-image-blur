@@ -54,7 +54,7 @@ char gsi_save_as_pgm5(GSI *img, char *file_name, char *comment){
             max = img->px[i];
     }
 
-    snprintf(header, sizeof(header), "P5\n#%s\n%d %d %d\n", comment, img->width, img->height, max);
+    snprintf(header, sizeof(header), "P5\n# %s\n%d %d \n%d\n", comment, img->width, img->height, max);
 
     write_b = write(fd, header, strlen(header));
     if (write_b < 0) {
@@ -76,7 +76,7 @@ char gsi_save_as_pgm5(GSI *img, char *file_name, char *comment){
 
 GSI *gsi_create_by_pgm5(char *file_name){
     unsigned int val = 0, i = 0, width = 0, height = 0;
-    unsigned char temp[3], c = 0;
+    unsigned char temp[4], c = 0;
 
     int fd = open(file_name, O_RDONLY);
     if (fd < 0) 
@@ -84,7 +84,7 @@ GSI *gsi_create_by_pgm5(char *file_name){
 
     //obsahuje P5 ?
     val = read(fd, temp, 2);
-    if(val != 2 || temp[0] != 80 || temp[1] != 53){
+    if(val != 2 || temp[0] != 'P' || temp[1] != '5'){
         close(fd);
         return NULL;
     }
@@ -118,7 +118,7 @@ GSI *gsi_create_by_pgm5(char *file_name){
     temp[0] = temp[1] = temp[2] = 0;
     i = 0;
 
-    while(read(fd, &c, 1) == 1 && c != ' '){
+    while(read(fd, &c, 1) == 1 && c != '\n'){
         temp[i] = c;
         i++;
     }
@@ -128,6 +128,11 @@ GSI *gsi_create_by_pgm5(char *file_name){
     GSI* img = gsi_create_with_geometry_and_color(width, height, 0);
 
     //najvyssia hodnota (preskocime kedze ju netreba)
+    if(lseek(fd, 1, SEEK_CUR) == -1){
+        close(fd);
+        return NULL;
+    }
+    
     while(read(fd, &c, 1) == 1 && c != '\n');
 
     //citanie samotneho obrazku
@@ -153,73 +158,81 @@ GSI *gsi_create_by_pgm5(char *file_name){
 
 char gsi_gauss_blur(GSI *to_blur, GSI *blurred, float sigsq){
     unsigned int y = 0, x = 0;
-    int i = 0, j = 0, px = 0, py = 0;
+    int n = 0, i = 0, px = 0, py = 0;
     float sum = 0.0, blurred_value = 0.0;
-
-    if (to_blur == NULL || blurred == NULL || to_blur->px == NULL || blurred->px == NULL ||
-        to_blur->width != blurred->width || to_blur->height != blurred->height) {
-        return BLUR_FAILURE; 
-    }
 
     if (to_blur == NULL || blurred == NULL || to_blur->px == NULL || blurred->px == NULL ||
         to_blur->width != blurred->width || to_blur->height != blurred->height) {
         return BLUR_FAILURE;
     }
 
-    // vypocitaj velkost kernelu podla sigsq
+    // Compute kernel size and radius
     int kernel_size = ceil(sqrt(2.0 * sigsq) * 3.0) * 2 + 1;
     int kernel_radius = kernel_size / 2;
 
-    // vytvor a vypln gauss kernel
+    // Allocate and fill the Gaussian kernel
     float *kernel = (float *)malloc(kernel_size * sizeof(float));
     if (kernel == NULL) {
         return BLUR_FAILURE;
     }
 
     for (i = 0; i < kernel_size; i++) {
-        px = i - kernel_radius;
-        kernel[i] = exp(-px * px / (2.0 * sigsq));
+        n = i - kernel_radius;
+        kernel[i] = exp(-n * n / (2.0 * sigsq));
         sum += kernel[i];
     }
 
     for (i = 0; i < kernel_size; i++) {
-        kernel[i] /= sum; // Normalizuj kernel aby sucet bol 1.0
+        kernel[i] /= sum;
     }
 
-    // Apply horizontal
+    // Temporary blurred image
+    GSI *temp_blurred = (GSI *)malloc(sizeof(GSI));
+    if (temp_blurred == NULL) {
+        free(kernel);
+        return BLUR_FAILURE;
+    }
+    temp_blurred->width = to_blur->width;
+    temp_blurred->height = to_blur->height;
+    temp_blurred->px = (unsigned char *)malloc(to_blur->width * to_blur->height * sizeof(unsigned char));
+    if (temp_blurred->px == NULL) {
+        free(kernel);
+        free(temp_blurred);
+        return BLUR_FAILURE;
+    }
+
+    // Apply horizontal convolution
     for (y = 0; y < to_blur->height; y++) {
         for (x = 0; x < to_blur->width; x++) {
             blurred_value = 0.0;
-            sum = 0.0;
             for (i = 0; i < kernel_size; i++) {
                 px = x + i - kernel_radius;
                 if (px < 0 || px >= to_blur->width) {
-                    continue; // preskoc pixely mimo obrazku
+                    continue;
                 }
                 blurred_value += PIX(to_blur, px, y) * kernel[i];
-                sum += kernel[i];
             }
-            PIX(blurred, x, y) = (unsigned char)(blurred_value / sum);
+            PIX(temp_blurred, x, y) = (unsigned char)blurred_value;
         }
     }
 
-     //apply vertical
+    // Apply vertical convolution
     for (y = 0; y < to_blur->height; y++) {
         for (x = 0; x < to_blur->width; x++) {
             blurred_value = 0.0;
-            sum = 0.0;
-            for (j = 0; j < kernel_size; j++) {
-                py = y + j - kernel_radius;
+            for (i = 0; i < kernel_size; i++) {
+                py = y + i - kernel_radius;
                 if (py < 0 || py >= to_blur->height) {
-                    continue; // preskoc pixely mimo obrazku
+                    continue;
                 }
-                blurred_value += PIX(blurred, x, py) * kernel[j];
-                sum += kernel[j];
+                blurred_value += PIX(temp_blurred, x, py) * kernel[i];
             }
-            PIX(blurred, x, y) = (unsigned char)(blurred_value / sum);
+            PIX(blurred, x, y) = (unsigned char)blurred_value;
         }
     }
 
+    free(temp_blurred->px);
+    free(temp_blurred);
     free(kernel);
 
     return BLUR_SUCCESS;

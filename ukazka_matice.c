@@ -4,10 +4,10 @@
 
 int main(void)
 {
-    GSI *to_blur = gsi_create_with_geometry_and_color(150, 150, 100);
-    GSI *blurred = gsi_create_with_geometry_and_color(150, 150, 0);
+    GSI *to_blur = gsi_create_by_pgm5("minitel-main.pgm");
+    GSI *blurred = gsi_create_by_pgm5("minitel-main.pgm");
 
-    gsi_gauss_blur(to_blur, blurred, 1.5);
+    gsi_gauss_blur(to_blur, blurred, 1.0);
 
     gsi_save_as_pgm5(blurred, "blurred.pgm", "blurred");
 
